@@ -26,7 +26,7 @@ Adafruit_NeoPixel strip(NUM_LEDS, PIN_LED, NEO_GRB + NEO_KHZ800);
 // Step rate range
 // ============================================================
 const uint32_t MIN_STEP_SPS = 100;
-const uint32_t MAX_STEP_SPS = 10000;
+const uint32_t MAX_STEP_SPS = 6000;
 
 // Speed knob update smoothing
 const uint16_t UPDATE_MS_SPEED   = 30;
@@ -48,7 +48,7 @@ const uint16_t MODEBTN_DEBOUNCE_MS = 50;
 static uint32_t beep_until_ms = 0;
 
 // 明るさ（%）
-static uint8_t brightness_pct = 50;  // 10..100
+static uint8_t brightness_pct = 20;  // 20..100
 
 // ============================================================
 // (重要) 型定義は関数より前に置く：ToneStep未定義エラー回避
@@ -67,9 +67,9 @@ struct BeepPlayer {
 static BeepPlayer beep;
 
 // ============================================================
-// Mode / Pattern (10 modes)
+// Mode / Pattern (11 modes)
 // ============================================================
-static uint8_t mode = 0; // 0..9
+static uint8_t mode = 0; // 0..10
 
 // LED animation state
 static uint32_t next_led_ms = 0;
@@ -157,6 +157,7 @@ const ToneStep BEEP_MODE6[] = { {300,  90, 30}, {600,  90, 30} };
 const ToneStep BEEP_MODE7[] = { {1500, 40, 10}, {1800, 40, 10}, {2100, 40, 10}, {2400,40,20} };
 const ToneStep BEEP_MODE8[] = { {1960, 60, 20}, {0,   40, 10}, {1960, 60, 20} };
 const ToneStep BEEP_MODE9[] = { {1047, 60, 10}, {1319,60, 10}, {1568,60, 10}, {2093,80,20} };
+const ToneStep BEEP_MODE10[] = { {700, 50, 10}, {900, 50, 10}, {1100, 50, 10}, {1400, 70, 20} };
 
 void playModeBeep(uint8_t m) {
   switch (m) {
@@ -170,6 +171,7 @@ void playModeBeep(uint8_t m) {
     case 7: startBeepSequence(BEEP_MODE7, sizeof(BEEP_MODE7)/sizeof(BEEP_MODE7[0])); break;
     case 8: startBeepSequence(BEEP_MODE8, sizeof(BEEP_MODE8)/sizeof(BEEP_MODE8[0])); break;
     case 9: startBeepSequence(BEEP_MODE9, sizeof(BEEP_MODE9)/sizeof(BEEP_MODE9[0])); break;
+    case 10: startBeepSequence(BEEP_MODE10, sizeof(BEEP_MODE10)/sizeof(BEEP_MODE10[0])); break;
   }
 }
 
@@ -230,8 +232,8 @@ void updateBrightnessFromSlider(uint32_t now_ms) {
   if (!ema_init) { ema = (float)raw; ema_init = true; }
   else { ema = ema + EMA_ALPHA_BRT * ((float)raw - ema); }
 
-  int pct = map((long)ema, 0, 1023, 10, 100);
-  uint8_t pct_u8 = clampU8(pct, 10, 100);
+  int pct = map((long)ema, 0, 1023, 20, 100);
+  uint8_t pct_u8 = clampU8(pct, 20, 100);
 
   int diff = (pct_u8 > last_applied_pct) ? (pct_u8 - last_applied_pct)
                                          : (last_applied_pct - pct_u8);
@@ -289,9 +291,6 @@ void pattern3_twinkle() {
     uint8_t r = (uint8_t)(c >> 16);
     uint8_t g = (uint8_t)(c >> 8);
     uint8_t b = (uint8_t)(c);
-    r = (uint8_t)(r * 200UL / 255);
-    g = (uint8_t)(g * 200UL / 255);
-    b = (uint8_t)(b * 200UL / 255);
     strip.setPixelColor(i, r, g, b);
   }
   for (uint8_t k = 0; k < 4; k++) {
@@ -307,15 +306,12 @@ void pattern4_meteor() {
     uint8_t r = (uint8_t)(c >> 16);
     uint8_t g = (uint8_t)(c >> 8);
     uint8_t b = (uint8_t)(c);
-    r = (uint8_t)(r * 180UL / 255);
-    g = (uint8_t)(g * 180UL / 255);
-    b = (uint8_t)(b * 180UL / 255);
     strip.setPixelColor(i, r, g, b);
   }
   meteor_pos = (meteor_pos + 1) % NUM_LEDS;
   strip.setPixelColor(meteor_pos, strip.Color(255,255,255));
-  strip.setPixelColor((meteor_pos + NUM_LEDS - 1) % NUM_LEDS, hsv(8000, 255, 200));
-  strip.setPixelColor((meteor_pos + NUM_LEDS - 2) % NUM_LEDS, hsv(8000, 255, 120));
+  strip.setPixelColor((meteor_pos + NUM_LEDS - 1) % NUM_LEDS, hsv(8000, 255, 255));
+  strip.setPixelColor((meteor_pos + NUM_LEDS - 2) % NUM_LEDS, hsv(8000, 255, 255));
 }
 
 void pattern5_redPolice() {
@@ -342,8 +338,8 @@ void pattern7_splitWaves() {
   strip.setPixelColor(split_pos, hsv(h1, 255, 255));
   strip.setPixelColor(NUM_LEDS-1-split_pos, hsv((uint16_t)(h1+20000), 255, 255));
   if (split_pos > 0) {
-    strip.setPixelColor(split_pos-1, hsv(h1, 255, 80));
-    strip.setPixelColor(NUM_LEDS-split_pos, hsv((uint16_t)(h1+20000), 255, 80));
+    strip.setPixelColor(split_pos-1, hsv(h1, 255, 255));
+    strip.setPixelColor(NUM_LEDS-split_pos, hsv((uint16_t)(h1+20000), 255, 255));
   }
 }
 
@@ -364,6 +360,11 @@ void pattern9_whiteStrobe() {
   for (uint16_t i = 0; i < NUM_LEDS; i++) strip.setPixelColor(i, c);
 }
 
+void pattern10_allWhiteMax() {
+  uint32_t c = strip.Color(255,255,255);
+  for (uint16_t i = 0; i < NUM_LEDS; i++) strip.setPixelColor(i, c);
+}
+
 uint16_t ledUpdateIntervalForMode(uint8_t m) {
   switch (m) {
     case 0: return 20;
@@ -376,6 +377,7 @@ uint16_t ledUpdateIntervalForMode(uint8_t m) {
     case 7: return 40;
     case 8: return 55;
     case 9: return 90;
+    case 10: return 50;
     default: return 30;
   }
 }
@@ -398,6 +400,7 @@ void runLedPatterns(uint32_t now_ms) {
     case 7: pattern7_splitWaves();         break;
     case 8: pattern8_colorWipe();          break;
     case 9: pattern9_whiteStrobe();        break;
+    case 10: pattern10_allWhiteMax();      break;
   }
   strip.show();
 }
@@ -484,7 +487,7 @@ void loop() {
   bool btn = (digitalRead(PIN_MODE_BTN) == HIGH);
   if (btn && !last_btn) {
     if (now - last_btn_ms >= MODEBTN_DEBOUNCE_MS) {
-      mode = (uint8_t)((mode + 1) % 10);
+      mode = (uint8_t)((mode + 1) % 11);
       playModeBeep(mode);
       next_led_ms = 0;
       last_btn_ms = now;
